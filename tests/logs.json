@@ -1,0 +1,10 @@
+{"message":"ok","time":"2020-07-06T17:48:27+0900"}
+{"time":"2020-07-06T17:48:31+0900","message":"foo"}
+{"message":"bar","time":"2020-07-06T17:48:33+0900"}
+{"message":"[ERROR] XXX","time":"2020-07-06T17:48:40+0900"}
+{"time":"2020-07-06T17:48:43+0900","message":"baz"}
+{"time":"2020-07-06T17:49:11+0900","tag":"foo.bar"}
+{"tag":"foo.bar","time":"2020-07-06T17:49:19+0900","message":"test"}
+{"tag":"foo.bar","message":"[ERROR] hoge","time":"2020-07-06T17:49:37+0900"}
+{"message":"[ERROR] hoge baz","tag":"foo.baz","time":"2020-07-06T17:49:43+0900"}
+{"nested":{"message":"[ERROR] in nested"}}
