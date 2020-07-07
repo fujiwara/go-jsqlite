@@ -19,12 +19,6 @@ $ jsqlite "SELECT tag, time, message FROM records WHERE message LIKE '%error%' A
 ## As library
 
 ```go
-import (
-    "io"
-
-	"github.com/fujiwara/go-jsqlite"
-)
-
 func Select(r io.Reader, query string) error {
 	runner, _ := jsqlite.Read(r)
 	rows, err := runner.Select(query)
@@ -33,12 +27,13 @@ func Select(r io.Reader, query string) error {
 	}
 	if len(rows) == 0 {
 		return nil
-    }
-    for _, row := range rows {
-        // ... map[string]interface{}
-    }
-    return nil
+	}
+	for _, row := range rows {
+		// ... map[string]interface{}
+	}
+	return nil
 }
+```
 
 ## LICENSE
 
