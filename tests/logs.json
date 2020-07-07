@@ -8,3 +8,9 @@
 {"tag":"foo.bar","message":"[ERROR] hoge","time":"2020-07-06T17:49:37+0900"}
 {"message":"[ERROR] hoge baz","tag":"foo.baz","time":"2020-07-06T17:49:43+0900"}
 {"nested":{"message":"[ERROR] in nested"}}
+{"message":"[INFO] foo","time":"2020-07-07T23:29:01+0900","user_id":12345,"tag":"user.signup","is_bot":false}
+{"message":"[INFO] bar","time":"2020-07-07T23:29:13+0900","user_id":34567,"tag":"user.signup","is_bot":true}
+{"tag":"access","time":"2020-07-07T23:33:07+0900","uri":"/","reqtime":0.124,"size":333}
+{"time":"2020-07-07T23:33:09+0900","tag":"access","uri":"/","reqtime":0.22,"size":333}
+{"reqtime":1.999,"tag":"access","uri":"/example","time":"2020-07-07T23:33:18+0900","size":2134}
+{"uri":"/example","reqtime":3.999,"time":"2020-07-07T23:33:21+0900","tag":"access","size":9999}
