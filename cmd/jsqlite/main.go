@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/fujiwara/go-jsqlite"
 	"github.com/pkg/profile"
@@ -17,7 +18,9 @@ func init() {
 }
 
 func main() {
-	defer profile.Start(profile.ProfilePath(".")).Stop()
+	if b, _ := strconv.ParseBool(os.Getenv("PPROF_ENABLED")); b {
+		defer profile.Start(profile.ProfilePath(".")).Stop()
+	}
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -31,7 +34,6 @@ func run() error {
 	flag.Parse()
 
 	args := flag.Args()
-	log.Println(args)
 	if len(args) == 0 {
 		flag.Usage()
 		return nil
