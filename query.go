@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -94,11 +95,27 @@ func (r *QueryRunner) Read(src io.Reader) error {
 		src = bufio.NewReaderSize(src, bufSize)
 	}
 	dec := json.NewDecoder(src)
-	tx := r.db.MustBegin()
-	defer tx.Rollback()
 	defer func() {
 		r.stmtCache = make(map[string]*sqlx.Stmt)
 	}()
+	ch := make(chan map[string]interface{}, 1000)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tx := r.db.MustBegin()
+		defer tx.Rollback()
+		for row := range ch {
+			if err := r.manageTable(tx, row); err != nil {
+				return
+			}
+			if err := r.insert(tx, row); err != nil {
+				return
+			}
+		}
+		tx.Commit()
+	}()
+
 	var row map[string]interface{}
 	for {
 		row = make(map[string]interface{}, 100)
@@ -108,14 +125,11 @@ func (r *QueryRunner) Read(src io.Reader) error {
 			}
 			return err
 		}
-		if err := r.manageTable(tx, row); err != nil {
-			return err
-		}
-		if err := r.insert(tx, row); err != nil {
-			return err
-		}
+		ch <- row
 	}
-	return tx.Commit()
+	close(ch)
+	wg.Wait()
+	return nil
 }
 
 // NoSuchColumnError detect error from SQLite which describe "no such column".
