@@ -14,3 +14,5 @@
 {"time":"2020-07-07T23:33:09+0900","tag":"access","uri":"/","reqtime":0.22,"size":333}
 {"reqtime":1.999,"tag":"access","uri":"/example","time":"2020-07-07T23:33:18+0900","size":2134}
 {"uri":"/example","reqtime":3.999,"time":"2020-07-07T23:33:21+0900","tag":"access","size":9999}
+{"req_id":12345,"tag":"katsubushi"}
+{"req_id":729653122850365440,"tag":"katsubushi"}

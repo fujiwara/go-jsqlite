@@ -21,6 +21,7 @@ func init() {
 var selectTestSuite = []struct {
 	query string
 	rows  int
+	json  string
 }{
 	{
 		query: `select time, coalesce(message, json_extract(nested, '$.message')) as message from records where tag is null`,
@@ -45,6 +46,12 @@ var selectTestSuite = []struct {
 	{
 		query: `SELECT avg(reqtime) as avg_reqtime, sum(size) as total_size FROM records WHERE tag='access' and uri='/'`,
 		rows:  1,
+		json:  `[{"avg_reqtime":0.172,"total_size":666}]`,
+	},
+	{
+		query: `SELECT req_id FROM records WHERE tag='katsubushi' order by req_id`,
+		rows:  2,
+		json:  `[{"req_id":12345},{"req_id":729653122850365440}]`,
 	},
 }
 
@@ -73,6 +80,11 @@ func TestRead(t *testing.T) {
 		}
 		if len(rows) != ts.rows {
 			t.Errorf("unexpected result rows %d expected %d", len(rows), ts.rows)
+		}
+		if ts.json != "" {
+			if js := marshalJSON(rows); js != ts.json {
+				t.Errorf("unexpected result json got %s expected %s", js, ts.json)
+			}
 		}
 		t.Log(marshalJSON(rows))
 	}

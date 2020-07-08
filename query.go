@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	DefaultDSN      = ":memory:"
-	SQLiteMaxColumn = 2000
+	sqliteMaxColumn = 2000
+	maxFloat64      = 9007199254740991 // 2 ** 53 - 1
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	for i := 1; i <= SQLiteMaxColumn; i++ {
+	for i := 1; i <= sqliteMaxColumn; i++ {
 		placeHolders = append(placeHolders, fmt.Sprintf("$%d", i))
 	}
 }
@@ -140,6 +140,7 @@ func (r *QueryRunner) readWorker(ch chan map[string]interface{}, src io.Reader) 
 		src = bufio.NewReaderSize(src, bufSize)
 	}
 	dec := json.NewDecoder(src)
+	dec.UseNumber()
 	var row map[string]interface{}
 	for {
 		row = make(map[string]interface{}, 100)
@@ -243,6 +244,14 @@ func (r *QueryRunner) insert(tx *sqlx.Tx, row map[string]interface{}) error {
 		switch v.(type) {
 		case nil, string, float64, bool:
 			values = append(values, v)
+		case json.Number:
+			f, _ := v.(json.Number).Float64()
+			if f <= maxFloat64 {
+				values = append(values, f)
+			} else {
+				i, _ := v.(json.Number).Int64()
+				values = append(values, i)
+			}
 		default:
 			// structured
 			b, _ := json.Marshal(v)
