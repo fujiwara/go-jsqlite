@@ -240,17 +240,20 @@ func (r *QueryRunner) addCols(cols ...string) {
 func (r *QueryRunner) insert(tx *sqlx.Tx, row map[string]interface{}) error {
 	values := make([]interface{}, 0, len(r.cols))
 	for _, col := range r.cols {
-		v := row[col]
-		switch v.(type) {
-		case nil, string, float64, bool:
+		switch v := row[col].(type) {
+		case nil, string, []byte, float64, bool:
 			values = append(values, v)
 		case json.Number:
-			f, _ := v.(json.Number).Float64()
-			if f <= maxFloat64 {
+			if f, err := v.Float64(); err != nil {
+				values = append(values, v.String())
+			} else if f <= maxFloat64 {
 				values = append(values, f)
 			} else {
-				i, _ := v.(json.Number).Int64()
-				values = append(values, i)
+				if i, err := v.Int64(); err != nil {
+					values = append(values, v.String())
+				} else {
+					values = append(values, i)
+				}
 			}
 		default:
 			// structured
