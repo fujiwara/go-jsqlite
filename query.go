@@ -124,10 +124,6 @@ func NoSuchColumnError(err error) bool {
 }
 
 func (r *QueryRunner) manageTable(tx *sqlx.Tx, row map[string]interface{}) error {
-	if len(r.cols) == len(row)/2 {
-		return nil
-	}
-
 	adds := make([]string, 0)
 	for col := range row {
 		if _, exists := r.colsSet[col]; exists {
