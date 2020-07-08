@@ -29,8 +29,8 @@ func main() {
 }
 
 func run() error {
-	var dsn string
-	flag.StringVar(&dsn, "dsn", ":memory:", "go-sqlite3 data source name")
+	var memory bool
+	flag.BoolVar(&memory, "memory", false, "use in-memory database")
 	flag.Parse()
 
 	args := flag.Args()
@@ -50,7 +50,7 @@ func run() error {
 		f = os.Stdin
 	}
 
-	runner, err := jsqlite.New(dsn)
+	runner, err := jsqlite.New(memory)
 	if err != nil {
 		return err
 	}

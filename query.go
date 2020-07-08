@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -30,6 +32,16 @@ func init() {
 	}
 }
 
+func generateDSN(memory bool) (string, func()) {
+	if memory {
+		return ":memory:", func() {}
+	}
+	tmpfile, _ := ioutil.TempFile("", "jsqlite.*.db")
+	return fmt.Sprintf("file:%s?_sync=off&_vacuum=none", tmpfile.Name()), func() {
+		os.Remove(tmpfile.Name())
+	}
+}
+
 // QueryRunner represents a query runner of jsqlite.
 type QueryRunner struct {
 	db        *sqlx.DB
@@ -37,6 +49,7 @@ type QueryRunner struct {
 	colsSet   map[string]struct{}
 	colsDef   string
 	stmtCache map[string]*sqlx.Stmt
+	cleanup   func()
 }
 
 // Table returns a SQLite table name.
@@ -62,12 +75,15 @@ func (r *QueryRunner) Select(q string) ([]map[string]interface{}, error) {
 }
 
 // New creates a QueryRunner
-func New(dsn string) (*QueryRunner, error) {
+func New(memory bool) (*QueryRunner, error) {
+	dsn, cleanup := generateDSN(memory)
 	db, err := sqlx.Connect("sqlite3", dsn)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithDB(db), nil
+	r := NewWithDB(db)
+	r.cleanup = cleanup
+	return r, nil
 }
 
 // NewWithDB creates a QueryRunner with the *sqlx.DB
@@ -79,9 +95,17 @@ func NewWithDB(db *sqlx.DB) *QueryRunner {
 	}
 }
 
+// Close closes a database and cleanup the database file if nessesary.
+func (r *QueryRunner) Close() error {
+	if r.cleanup != nil {
+		r.cleanup()
+	}
+	return r.db.Close()
+}
+
 // Read creates a QueryRunner and read JSONL from io.Reader
 func Read(r io.Reader) (*QueryRunner, error) {
-	runner, err := New(DefaultDSN)
+	runner, err := New(false)
 	if err != nil {
 		return nil, err
 	}

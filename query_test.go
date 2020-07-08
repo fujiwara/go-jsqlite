@@ -60,12 +60,12 @@ func TestRead(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	defer db.Close()
 
 	runner := jsqlite.NewWithDB(sqlx.NewDb(db, "sqlite3"))
 	if err := runner.Read(f); err != nil {
 		t.Error(err)
 	}
+	defer runner.Close()
 	for _, ts := range selectTestSuite {
 		rows, err := runner.Select(ts.query)
 		if err != nil && !jsqlite.NoSuchColumnError(err) {
