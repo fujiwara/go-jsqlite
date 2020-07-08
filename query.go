@@ -2,14 +2,15 @@ package jsqlite
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -89,33 +90,32 @@ func Read(r io.Reader) (*QueryRunner, error) {
 
 // Read reads JSONL via io.Reader, creates table on in-memory SQLite and inserts records.
 func (r *QueryRunner) Read(src io.Reader) error {
+	return r.ReadWithContext(context.Background(), src)
+}
+
+// ReadWithContext reads JSONL via io.Reader, creates table on in-memory SQLite and inserts records with context.
+func (r *QueryRunner) ReadWithContext(ctx context.Context, src io.Reader) error {
+	ch := make(chan map[string]interface{}, 1000)
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return r.readWorker(ch, src)
+	})
+	g.Go(func() error {
+		return r.insertWorker(ch)
+	})
+	return g.Wait()
+}
+
+func (r *QueryRunner) readWorker(ch chan map[string]interface{}, src io.Reader) error {
+	defer close(ch)
+
 	switch src.(type) {
 	case *bufio.Reader:
 	default:
 		src = bufio.NewReaderSize(src, bufSize)
 	}
 	dec := json.NewDecoder(src)
-	defer func() {
-		r.stmtCache = make(map[string]*sqlx.Stmt)
-	}()
-	ch := make(chan map[string]interface{}, 1000)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		tx := r.db.MustBegin()
-		defer tx.Rollback()
-		for row := range ch {
-			if err := r.manageTable(tx, row); err != nil {
-				return
-			}
-			if err := r.insert(tx, row); err != nil {
-				return
-			}
-		}
-		tx.Commit()
-	}()
-
 	var row map[string]interface{}
 	for {
 		row = make(map[string]interface{}, 100)
@@ -127,8 +127,25 @@ func (r *QueryRunner) Read(src io.Reader) error {
 		}
 		ch <- row
 	}
-	close(ch)
-	wg.Wait()
+	return nil
+}
+
+func (r *QueryRunner) insertWorker(ch chan map[string]interface{}) error {
+	defer func() {
+		r.stmtCache = make(map[string]*sqlx.Stmt)
+	}()
+
+	tx := r.db.MustBegin()
+	defer tx.Rollback()
+	for row := range ch {
+		if err := r.manageTable(tx, row); err != nil {
+			return err
+		}
+		if err := r.insert(tx, row); err != nil {
+			return err
+		}
+	}
+	tx.Commit()
 	return nil
 }
 
