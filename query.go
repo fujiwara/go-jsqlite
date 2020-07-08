@@ -102,7 +102,7 @@ func (r *QueryRunner) ReadWithContext(ctx context.Context, src io.Reader) error 
 		return r.readWorker(ch, src)
 	})
 	g.Go(func() error {
-		return r.insertWorker(ch)
+		return r.loadWorker(ch)
 	})
 	return g.Wait()
 }
@@ -130,7 +130,7 @@ func (r *QueryRunner) readWorker(ch chan map[string]interface{}, src io.Reader) 
 	return nil
 }
 
-func (r *QueryRunner) insertWorker(ch chan map[string]interface{}) error {
+func (r *QueryRunner) loadWorker(ch chan map[string]interface{}) error {
 	defer func() {
 		r.stmtCache = make(map[string]*sqlx.Stmt)
 	}()
