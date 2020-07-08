@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/sync/errgroup"
+
+	_ "github.com/mattn/go-sqlite3" // db driver
 )
 
 const (
@@ -237,29 +238,33 @@ func (r *QueryRunner) addCols(cols ...string) {
 	}
 }
 
+func toValue(in interface{}) interface{} {
+	switch v := in.(type) {
+	case nil, string, []byte, float64, bool:
+		return v
+	case json.Number:
+		if fv, err := v.Float64(); err != nil {
+			return v.String()
+		} else if fv <= maxFloat64 {
+			return fv
+		} else {
+			iv, err := v.Int64()
+			if err != nil {
+				return v.String()
+			}
+			return iv
+		}
+	default:
+		// structured
+		b, _ := json.Marshal(v)
+		return string(b)
+	}
+}
+
 func (r *QueryRunner) insert(tx *sqlx.Tx, row map[string]interface{}) error {
 	values := make([]interface{}, 0, len(r.cols))
 	for _, col := range r.cols {
-		switch v := row[col].(type) {
-		case nil, string, []byte, float64, bool:
-			values = append(values, v)
-		case json.Number:
-			if f, err := v.Float64(); err != nil {
-				values = append(values, v.String())
-			} else if f <= maxFloat64 {
-				values = append(values, f)
-			} else {
-				if i, err := v.Int64(); err != nil {
-					values = append(values, v.String())
-				} else {
-					values = append(values, i)
-				}
-			}
-		default:
-			// structured
-			b, _ := json.Marshal(v)
-			values = append(values, string(b))
-		}
+		values = append(values, toValue(row[col]))
 	}
 	q := fmt.Sprintf(
 		"INSERT INTO %s(%s) VALUES (%s)",
@@ -267,22 +272,22 @@ func (r *QueryRunner) insert(tx *sqlx.Tx, row map[string]interface{}) error {
 		r.colsDef,
 		strings.Join(placeHolders[0:len(values)], ","),
 	)
-	if stmt, err := r.prepare(tx, q); err != nil {
-		return err
-	} else {
-		_, err := stmt.Exec(values...)
+	stmt, err := r.prepare(tx, q)
+	if err != nil {
 		return err
 	}
+	_, err = stmt.Exec(values...)
+	return err
 }
 
 func (r *QueryRunner) prepare(tx *sqlx.Tx, query string) (*sqlx.Stmt, error) {
 	if stmt, exists := r.stmtCache[query]; exists {
 		return stmt, nil
 	}
-	if stmt, err := tx.Preparex(query); err != nil {
+	stmt, err := tx.Preparex(query)
+	if err != nil {
 		return nil, err
-	} else {
-		r.stmtCache[query] = stmt
-		return stmt, nil
 	}
+	r.stmtCache[query] = stmt
+	return stmt, nil
 }
